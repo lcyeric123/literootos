@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euo pipefail
+
+clear
+echo "============================================="
+echo "        LiteRoot OS Installer"
+echo "============================================="
+
+if [ "$(id -u)" -ne 0 ];then
+    echo "错误：必须使用 sudo install 执行安装程序"
+    exit 1
+fi
+
+TARGET="/dev/sda"
+MNT="/mnt/literoot_install"
+
+echo "警告：将会清空 $TARGET 全部数据！"
+echo "============================================="
+sleep 2
+
+# 分区 GPT + EFI + EXT4
+sgdisk -Z "$TARGET"
+sgdisk -n 1:0:+300M -t 1:ef00 "$TARGET"
+sgdisk -n 2:0:0 -t 2:8300 "$TARGET"
+
+mkfs.fat -F32 "${TARGET}1"
+mkfs.ext4 -F "${TARGET}2"
+
+mkdir -p "$MNT"
+mount "${TARGET}2" "$MNT"
+mkdir -p "$MNT/boot/efi"
+mount "${TARGET}1" "$MNT/boot/efi"
+
+echo "正在复制系统文件..."
+rsync -a /live/rootfs/ "$MNT/"
+
+echo "安装 GRUB EFI 引导..."
+grub-install --target=x86_64-efi --boot-directory="$MNT/boot" --efi-directory="$MNT/boot/efi" "$TARGET"
+grub-mkconfig -o "$MNT/boot/grub/grub.cfg"
+
+umount -R "$MNT"
+
+echo ""
+echo "============================================="
+echo "✅ 系统安装完成！"
+echo "⏰ 你有 10 秒时间拔掉 ISO / U 盘安装介质"
+echo "============================================="
+
+for i in {10..1}
+do
+  echo "倒计时：$i 秒"
+  sleep 1
+done
+
+echo "正在重启..."
+reboot
