@@ -1,18 +1,69 @@
-#!/bin/sh
-set -e
+#!/bin/bash
 
+# ============================================================
+# live-build 自动配置脚本
+# 作用：在构建前为 lb config 提供统一的参数
+# 说明：该脚本会被 live-build 在 auto/ 目录下自动调用，
+#       若不存在 auto/config，则需手动执行 lb config。
+# ============================================================
+
+set -e  # 遇到错误立即退出
+
+# ---------- 1. 基础发行版信息 ----------
+# 强制指定 Debian 12 Bookworm，无论宿主环境是什么
+DIST="bookworm"
+ARCH="amd64"                     # 目标架构，可根据需要改为 i386
+
+# ---------- 2. 国内镜像源（清华源） ----------
+# 区分 bootstrap（宿主阶段）、chroot（目标系统阶段）、binary（最终镜像阶段）
+# 使用清华源加速下载，保证国内构建速度
+MIRROR_BOOTSTRAP="https://mirrors.tuna.tsinghua.edu.cn/debian/"
+MIRROR_CHROOT="https://mirrors.tuna.tsinghua.edu.cn/debian/"
+MIRROR_BINARY="https://mirrors.tuna.tsinghua.edu.cn/debian/"
+
+# 安全更新源也使用清华镜像（Debian 安全更新镜像）
+MIRROR_CHROOT_SECURITY="https://mirrors.tuna.tsinghua.edu.cn/debian-security/"
+MIRROR_BINARY_SECURITY="https://mirrors.tuna.tsinghua.edu.cn/debian-security/"
+
+# 备用：阿里云镜像
+# MIRROR_BOOTSTRAP="https://mirrors.aliyun.com/debian/"
+# MIRROR_CHROOT="https://mirrors.aliyun.com/debian/"
+# MIRROR_BINARY="https://mirrors.aliyun.com/debian/"
+# MIRROR_CHROOT_SECURITY="https://mirrors.aliyun.com/debian-security/"
+# MIRROR_BINARY_SECURITY="https://mirrors.aliyun.com/debian-security/"
+
+# ---------- 3. 执行 lb config ----------
+# 注意：使用 --debian-installer none 去除安装器，制作纯 Live 环境
+#      若需安装到硬盘，可改为 --debian-installer live
 lb config noauto \
-  --architecture amd64 \
-  --distribution bookworm \
-  --parent-distribution bookworm \
-  --variant minbase \
-  --archive-areas "main" \
-  --binary-images iso-hybrid \
-  --bootloaders grub-efi,syslinux \
-  --apt-source-archives false \
-  --memtest none \
-  --bootappend-live "boot=live quiet splash systemd.show_status=0" \
-  --mirror-bootstrap "https://deb.debian.org/debian" \
-  --mirror-chroot "https://deb.debian.org/debian" \
-  --mirror-binary "https://deb.debian.org/debian" \
-  "${@}"
+    --distribution "${DIST}" \
+    --architectures "${ARCH}" \
+    --archive-areas "main contrib non-free non-free-firmware" \
+    --mirror-bootstrap "${MIRROR_BOOTSTRAP}" \
+    --mirror-chroot "${MIRROR_CHROOT}" \
+    --mirror-binary "${MIRROR_BINARY}" \
+    --mirror-chroot-security "${MIRROR_CHROOT_SECURITY}" \
+    --mirror-binary-security "${MIRROR_BINARY_SECURITY}" \
+    --debian-installer none \
+    --bootappend-live "boot=live components quiet splash locales=zh_CN.UTF-8 keyboard-layouts=us" \
+    --iso-application "Debian 12 XFCE Live" \
+    --iso-publisher "Custom Build" \
+    --image-name "debian12-xfce-live" \
+    --win32-loader false \
+    --memtest none \
+    --checksums sha256
+
+# 参数解释：
+# noauto                   : 禁止自动检测，完全使用当前配置
+# --distribution           : 指定 Debian 版本代号
+# --architectures          : 目标 CPU 架构
+# --archive-areas          : 包含的仓库组件（non-free-firmware 提供固件）
+# --mirror-*               : 各阶段使用的 APT 源
+# --debian-installer none  : 不包含安装程序
+# --bootappend-live        : 内核引导参数，设置语言和键盘
+# --iso-application/publisher : ISO 元数据
+# --win32-loader false     : 禁用 Windows 自动运行
+# --memtest none           : 不包含内存测试工具（精简）
+# --checksums sha256       : 生成校验和文件
+
+# 至此，构建目录 config/ 已生成，随后 lb build 将基于这些配置构建 ISO
