@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+lb config noauto \
+  --architecture amd64 \
+  --distribution bookworm \
+  --variant minbase \
+  --archive-areas "main" \
+  --binary-images iso-hybrid \
+  --bootloaders grub-efi,syslinux \
+  --apt-source-archives false \
+  --memtest none \
+  --bootappend-live "boot=live quiet splash systemd.show_status=0" \
+  "${@}"
