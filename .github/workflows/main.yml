@@ -1,0 +1,38 @@
+name: Build LiteRoot OS ISO
+
+# 只允许手动点击按钮触发，push不会自动构建
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: '构建备注（选填）'
+        required: false
+        default: 'Build LiteRoot Install ISO'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin dosfstools gdisk rsync
+
+      - name: Prepare build directory
+        run: |
+          mkdir -p build
+          cp -r ./auto ./config ./build/
+
+      - name: Build ISO image
+        run: |
+          cd build
+          sudo lb build
+
+      - name: Upload ISO Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: build/*.iso
+          name: LiteRoot-OS-x86_64
