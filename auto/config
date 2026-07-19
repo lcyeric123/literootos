@@ -4,6 +4,7 @@ set -e
 lb config noauto \
   --architecture amd64 \
   --distribution bookworm \
+  --parent-distribution bookworm \
   --variant minbase \
   --archive-areas "main" \
   --binary-images iso-hybrid \
@@ -11,4 +12,7 @@ lb config noauto \
   --apt-source-archives false \
   --memtest none \
   --bootappend-live "boot=live quiet splash systemd.show_status=0" \
+  --mirror-bootstrap "https://deb.debian.org/debian" \
+  --mirror-chroot "https://deb.debian.org/debian" \
+  --mirror-binary "https://deb.debian.org/debian" \
   "${@}"
