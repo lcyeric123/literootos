@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+# 安装必备工具
+apt update -y
+apt install -y sudo openssh-server dhcpcd5 nano rsync gdisk grub-efi-amd64 dosfstools mtools
+
+# 关闭多余服务，降低内存占用
+systemctl mask avahi-daemon bluetooth cups ModemManager systemd-resolved
+
+# 只保留二进制源，关闭源码源
+sed -i 's/^Types: deb deb-src/Types: deb/' /etc/apt/sources.list.d/debian.sources
+
+# 赋予安装脚本执行权限
+chmod +x /usr/local/bin/install
+
+# 创建普通用户
+useradd -m liteuser
+echo "liteuser:123456" | chpasswd
+usermod -aG sudo liteuser
+
+# 清理冗余文件，缩小镜像体积
+rm -rf /usr/share/man/*
+rm -rf /usr/share/doc/*
+rm -rf /usr/share/locale/*
+apt clean
+rm -rf /var/cache/apt/archives/*
+
+# 开机提示文字
+cat > /etc/motd <<EOF
+=============================================
+          Welcome to LiteRoot OS
+  内存精简版 Debian Live 系统
+  输入命令：sudo install  安装到硬盘
+=============================================
+EOF
